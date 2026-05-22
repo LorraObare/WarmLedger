@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Warm Ledger — A Devotional Finance Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --cream: #fdf4ef;
+    --cream-2: #f7ebe1;
+    --olive: #6b7c45;
+    --forest: #1e4d2b;
+    --chocolate: #2d1a14;
+    --terracotta: #c4622d;
+    --wine: #6b1010;
+    --ink: #2d1a14;
+    --muted: #7a5d4d;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--cream);
+    color: var(--ink);
+    font-family: "Times New Roman", Times, serif;
+    line-height: 1.5;
+  }
+  .container { max-width: 1200px; margin: 0 auto; padding: 32px 24px 80px; }
+
+  header.masthead {
+    text-align: center;
+    border-bottom: 2px double var(--chocolate);
+    padding-bottom: 18px;
+    margin-bottom: 28px;
+  }
+  header.masthead .eyebrow {
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    font-size: 11px;
+    color: var(--wine);
+  }
+  header.masthead h1 {
+    margin: 6px 0 4px;
+    font-size: 44px;
+    font-weight: 400;
+    font-style: italic;
+    color: var(--chocolate);
+  }
+  header.masthead p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 15px;
+  }
+
+  /* Summary bar */
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  .summary .stat {
+    background: var(--cream-2);
+    border: 1px solid rgba(45,26,20,0.15);
+    border-left: 6px solid var(--olive);
+    padding: 16px 18px;
+    border-radius: 4px;
+  }
+  .summary .stat:nth-child(2) { border-left-color: var(--forest); }
+  .summary .stat:nth-child(3) { border-left-color: var(--terracotta); }
+  .summary .stat:nth-child(4) { border-left-color: var(--wine); }
+  .summary .label {
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .summary .value {
+    font-size: 24px;
+    margin-top: 4px;
+    color: var(--chocolate);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: 1fr; }
+    .summary { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  .panel {
+    background: #fffaf5;
+    border: 1px solid rgba(45,26,20,0.18);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 24px;
+    box-shadow: 0 1px 0 rgba(45,26,20,0.04);
+  }
+  .panel header {
+    padding: 12px 18px;
+    border-bottom: 1px solid rgba(45,26,20,0.15);
+    background: var(--chocolate);
+    color: var(--cream);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .panel header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 400;
+    letter-spacing: 0.05em;
+    font-style: italic;
+  }
+  .panel .body { padding: 18px; }
+
+  /* Categories */
+  .cat {
+    padding: 12px 0;
+    border-bottom: 1px dashed rgba(45,26,20,0.18);
+  }
+  .cat:last-child { border-bottom: none; }
+  .cat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+  }
+  .cat-name {
+    font-size: 16px;
+    color: var(--chocolate);
+  }
+  .cat-numbers { font-size: 13px; color: var(--muted); }
+  .cat-numbers b { color: var(--ink); font-weight: normal; }
+  .bar {
+    height: 10px;
+    background: var(--cream-2);
+    border: 1px solid rgba(45,26,20,0.12);
+    border-radius: 999px;
+    margin-top: 8px;
+    overflow: hidden;
+  }
+  .bar > span {
+    display: block;
+    height: 100%;
+    background: var(--olive);
+    transition: width .4s ease;
+  }
+  .bar.warn > span { background: var(--terracotta); }
+  .bar.over > span { background: var(--wine); }
+  .cat-actions { margin-top: 6px; }
+  .cat-actions button {
+    background: none;
+    border: none;
+    color: var(--forest);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    font-style: italic;
+    padding: 0;
+    text-decoration: underline;
+  }
+
+  /* Form */
+  form.expense {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1.2fr 1.2fr auto;
+    gap: 10px;
+  }
+  @media (max-width: 800px) { form.expense { grid-template-columns: 1fr 1fr; } }
+  input, select {
+    width: 100%;
+    font-family: inherit;
+    font-size: 15px;
+    padding: 10px 12px;
+    background: var(--cream);
+    border: 1px solid rgba(45,26,20,0.25);
+    border-radius: 4px;
+    color: var(--ink);
+  }
+  input:focus, select:focus { outline: 2px solid var(--olive); outline-offset: 0; }
+  button.primary {
+    font-family: inherit;
+    font-size: 15px;
+    padding: 10px 18px;
+    background: var(--forest);
+    color: var(--cream);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 0.06em;
+  }
+  button.primary:hover { background: var(--olive); }
+  button.ghost {
+    font-family: inherit;
+    background: none;
+    color: var(--wine);
+    border: 1px solid var(--wine);
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  button.ghost:hover { background: var(--wine); color: var(--cream); }
+
+  /* Transactions */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 8px;
+    border-bottom: 1px solid rgba(45,26,20,0.1);
+  }
+  th {
+    font-weight: normal;
+    font-style: italic;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 11px;
+  }
+  td.amt { text-align: right; color: var(--wine); }
+  td .pill {
+    background: var(--cream-2);
+    border: 1px solid rgba(45,26,20,0.15);
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    color: var(--chocolate);
+  }
+  td button.del {
+    background: none; border: none; color: var(--wine);
+    cursor: pointer; font-family: inherit; font-size: 14px;
+  }
+  .empty { color: var(--muted); font-style: italic; text-align: center; padding: 18px; }
+
+  /* Insights / Verses */
+  .verses { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 700px) { .verses { grid-template-columns: 1fr; } }
+  .verse-card {
+    border: 1px solid rgba(45,26,20,0.18);
+    border-left: 6px solid var(--wine);
+    background: var(--cream-2);
+    padding: 16px 18px;
+    border-radius: 4px;
+    position: relative;
+  }
+  .verse-card.olive { border-left-color: var(--olive); }
+  .verse-card.forest { border-left-color: var(--forest); }
+  .verse-card.terracotta { border-left-color: var(--terracotta); }
+  .verse-card .quote {
+    font-style: italic;
+    font-size: 16px;
+    color: var(--chocolate);
+    margin: 0 0 8px;
+  }
+  .verse-card .ref {
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--wine);
+  }
+
+  .tip {
+    background: #fffaf5;
+    border: 1px solid rgba(45,26,20,0.15);
+    border-left: 4px solid var(--olive);
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    color: var(--ink);
+  }
+  .tip.warn { border-left-color: var(--terracotta); }
+  .tip.over { border-left-color: var(--wine); }
+
+  .chart-wrap { position: relative; height: 320px; }
+
+  footer.foot {
+    text-align: center;
+    margin-top: 40px;
+    color: var(--muted);
+    font-style: italic;
+    font-size: 13px;
+  }
+  .header-actions { display: flex; gap: 8px; }
+  .header-actions button {
+    background: transparent;
+    color: var(--cream);
+    border: 1px solid rgba(253,244,239,0.5);
+    padding: 4px 10px;
+    border-radius: 3px;
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .header-actions button:hover { background: rgba(253,244,239,0.15); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header class="masthead">
+    <div class="eyebrow">A Devotional Ledger</div>
+    <h1>Warm Ledger</h1>
+    <p>Stewardship for the month — Nairobi, KES</p>
+  </header>
+
+  <!-- Summary -->
+  <section class="summary">
+    <div class="stat">
+      <div class="label">Basic Salary</div>
+      <div class="value" id="s-basic">KES 30,000</div>
+    </div>
+    <div class="stat">
+      <div class="label">Take-Home Pay</div>
+      <div class="value" id="s-net">KES 26,094</div>
+    </div>
+    <div class="stat">
+      <div class="label">Total Spent</div>
+      <div class="value" id="s-spent">KES 0</div>
+    </div>
+    <div class="stat">
+      <div class="label">Remaining</div>
+      <div class="value" id="s-remain">KES 26,094</div>
+    </div>
+  </section>
+
+  <div class="grid">
+    <div>
+      <!-- Expense form -->
+      <div class="panel">
+        <header>
+          <h2>Record an Expense</h2>
+        </header>
+        <div class="body">
+          <form class="expense" id="expense-form">
+            <input type="text" id="f-desc" placeholder="Description (e.g. Matatu to town)" required>
+            <input type="number" id="f-amt" placeholder="Amount" min="1" step="1" required>
+            <select id="f-cat" required></select>
+            <input type="date" id="f-date" required>
+            <button class="primary" type="submit">Record</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Categories / Budgets -->
+      <div class="panel">
+        <header>
+          <h2>Budget Categories</h2>
+          <div class="header-actions">
+            <button type="button" id="reset-budgets">Reset Budgets</button>
+          </div>
+        </header>
+        <div class="body" id="categories"></div>
+      </div>
+
+      <!-- Transactions -->
+      <div class="panel">
+        <header>
+          <h2>Transactions</h2>
+          <div class="header-actions">
+            <button type="button" id="clear-all">Clear All</button>
+          </div>
+        </header>
+        <div class="body">
+          <table id="tx-table">
+            <thead>
+              <tr><th>Date</th><th>Description</th><th>Category</th><th style="text-align:right">Amount</th><th></th></tr>
+            </thead>
+            <tbody id="tx-body"></tbody>
+          </table>
+          <div class="empty" id="tx-empty">No transactions yet. Begin with gratitude.</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <!-- Chart -->
+      <div class="panel">
+        <header><h2>Spending Breakdown</h2></header>
+        <div class="body">
+          <div class="chart-wrap"><canvas id="chart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Insights -->
+      <div class="panel">
+        <header><h2>Smart Insights</h2></header>
+        <div class="body" id="insights"></div>
+      </div>
+
+      <!-- Verses -->
+      <div class="panel">
+        <header>
+          <h2>Daily Devotion</h2>
+          <div class="header-actions">
+            <button type="button" id="reshuffle">Reshuffle</button>
+          </div>
+        </header>
+        <div class="body">
+          <div class="verses" id="verses"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="foot">
+    "Commit to the Lord whatever you do, and he will establish your plans." — Proverbs 16:3
+  </footer>
+</div>
+
+<script>
+const BASIC = 30000;
+const NET = 26094;
+
+const DEFAULT_CATEGORIES = [
+  { id: "housing",   name: "Housing & Rent",       budget: 7000, color: "#1e4d2b" },
+  { id: "food",      name: "Food & Groceries",     budget: 6000, color: "#6b7c45" },
+  { id: "transport", name: "Transport",            budget: 3000, color: "#c4622d" },
+  { id: "utilities", name: "Utilities & Airtime",  budget: 2000, color: "#6b1010" },
+  { id: "health",    name: "Health",               budget: 1500, color: "#2d1a14" },
+  { id: "personal",  name: "Personal Care",        budget: 1500, color: "#8a6f5c" },
+  { id: "entertain", name: "Entertainment",        budget: 900,  color: "#a8472b" },
+  { id: "savings",   name: "Savings",              budget: 4194, color: "#3e6b3b" },
+];
+
+const VERSES = [
+  { ref: "Proverbs 13:11", text: "Wealth gained hastily will dwindle, but whoever gathers little by little will increase it." },
+  { ref: "Luke 16:10",     text: "Whoever is faithful in very little is also faithful in much." },
+  { ref: "Proverbs 21:5",  text: "The plans of the diligent lead surely to abundance, but everyone who is hasty comes only to poverty." },
+  { ref: "Proverbs 22:7",  text: "The rich rules over the poor, and the borrower is the slave of the lender." },
+  { ref: "Malachi 3:10",   text: "Bring the full tithe… and thereby put me to the test, says the Lord of hosts." },
+  { ref: "Philippians 4:19", text: "And my God will supply every need of yours according to his riches in glory in Christ Jesus." },
+  { ref: "Proverbs 3:9-10", text: "Honor the Lord with your wealth, and with the firstfruits of all your produce." },
+  { ref: "Ecclesiastes 5:10", text: "He who loves money will not be satisfied with money, nor he who loves wealth with his income." },
+  { ref: "Matthew 6:21",   text: "For where your treasure is, there your heart will be also." },
+  { ref: "1 Timothy 6:6",  text: "Godliness with contentment is great gain." },
+  { ref: "Proverbs 27:23", text: "Know well the condition of your flocks, and give attention to your herds." },
+  { ref: "Deuteronomy 8:18", text: "Remember the Lord your God, for it is he who gives you power to get wealth." },
+];
+
+const STORAGE = { tx: "warm.ledger.tx", budgets: "warm.ledger.budgets" };
+
+let transactions = JSON.parse(localStorage.getItem(STORAGE.tx) || "[]");
+let budgets = JSON.parse(localStorage.getItem(STORAGE.budgets) || "null");
+if (!budgets) {
+  budgets = {};
+  DEFAULT_CATEGORIES.forEach(c => budgets[c.id] = c.budget);
+}
+
+function saveTx() { localStorage.setItem(STORAGE.tx, JSON.stringify(transactions)); }
+function saveBudgets() { localStorage.setItem(STORAGE.budgets, JSON.stringify(budgets)); }
+
+function kes(n) {
+  return "KES " + Math.round(n).toLocaleString("en-US");
+}
+
+function spentByCat(id) {
+  return transactions.filter(t => t.cat === id).reduce((s, t) => s + Number(t.amt), 0);
+}
+function totalSpent() {
+  return transactions.reduce((s, t) => s + Number(t.amt), 0);
+}
+
+function renderSummary() {
+  const spent = totalSpent();
+  document.getElementById("s-basic").textContent = kes(BASIC);
+  document.getElementById("s-net").textContent = kes(NET);
+  document.getElementById("s-spent").textContent = kes(spent);
+  const remain = NET - spent;
+  const el = document.getElementById("s-remain");
+  el.textContent = kes(remain);
+  el.style.color = remain < 0 ? "var(--wine)" : "var(--chocolate)";
+}
+
+function renderCategories() {
+  const wrap = document.getElementById("categories");
+  wrap.innerHTML = "";
+  DEFAULT_CATEGORIES.forEach(c => {
+    const b = Number(budgets[c.id]) || 0;
+    const s = spentByCat(c.id);
+    const remaining = b - s;
+    const pct = b > 0 ? Math.min(100, (s / b) * 100) : 0;
+    const cls = s > b ? "over" : (pct >= 80 ? "warn" : "");
+    const div = document.createElement("div");
+    div.className = "cat";
+    div.innerHTML = `
+      <div class="cat-row">
+        <div class="cat-name">${c.name}</div>
+        <div class="cat-numbers">
+          Budget <b>${kes(b)}</b> · Spent <b>${kes(s)}</b> · ${remaining < 0 ? 'Over by' : 'Left'} <b>${kes(Math.abs(remaining))}</b>
+        </div>
+      </div>
+      <div class="bar ${cls}"><span style="width:${pct}%"></span></div>
+      <div class="cat-actions">
+        <button data-edit="${c.id}">Edit budget</button>
+      </div>
+    `;
+    wrap.appendChild(div);
+  });
+  wrap.querySelectorAll("button[data-edit]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-edit");
+      const cat = DEFAULT_CATEGORIES.find(x => x.id === id);
+      const cur = budgets[id] || 0;
+      const val = prompt(`Set budget for ${cat.name} (KES):`, cur);
+      if (val === null) return;
+      const num = Number(val);
+      if (!isFinite(num) || num < 0) { alert("Please enter a valid amount."); return; }
+      budgets[id] = num;
+      saveBudgets();
+      renderAll();
+    });
+  });
+}
+
+function renderCategoryOptions() {
+  const sel = document.getElementById("f-cat");
+  sel.innerHTML = DEFAULT_CATEGORIES.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+}
+
+function renderTransactions() {
+  const body = document.getElementById("tx-body");
+  const empty = document.getElementById("tx-empty");
+  body.innerHTML = "";
+  if (transactions.length === 0) {
+    empty.style.display = "block";
+    document.getElementById("tx-table").style.display = "none";
+    return;
+  }
+  empty.style.display = "none";
+  document.getElementById("tx-table").style.display = "table";
+  const sorted = [...transactions].sort((a,b) => (b.date || "").localeCompare(a.date || ""));
+  sorted.forEach(t => {
+    const cat = DEFAULT_CATEGORIES.find(c => c.id === t.cat);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${t.date}</td>
+      <td>${escapeHtml(t.desc)}</td>
+      <td><span class="pill">${cat ? cat.name : t.cat}</span></td>
+      <td class="amt">${kes(t.amt)}</td>
+      <td style="text-align:right"><button class="del" data-id="${t.id}" title="Delete">×</button></td>
+    `;
+    body.appendChild(tr);
+  });
+  body.querySelectorAll("button.del").forEach(b => {
+    b.addEventListener("click", () => {
+      transactions = transactions.filter(x => x.id !== b.getAttribute("data-id"));
+      saveTx(); renderAll();
+    });
+  });
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+let chart;
+function renderChart() {
+  const ctx = document.getElementById("chart").getContext("2d");
+  const data = DEFAULT_CATEGORIES.map(c => spentByCat(c.id));
+  const labels = DEFAULT_CATEGORIES.map(c => c.name);
+  const colors = DEFAULT_CATEGORIES.map(c => c.color);
+  if (chart) {
+    chart.data.datasets[0].data = data;
+    chart.update();
+    return;
+  }
+  chart = new Chart(ctx, {
+    type: "doughnut",
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderColor: "#fdf4ef", borderWidth: 2 }] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: { font: { family: "'Times New Roman', Times, serif", size: 12 }, color: "#2d1a14", boxWidth: 12 }
+        },
+        tooltip: {
+          callbacks: { label: (c) => `${c.label}: ${kes(c.parsed)}` },
+          bodyFont: { family: "'Times New Roman', Times, serif" },
+          titleFont: { family: "'Times New Roman', Times, serif" }
+        }
+      },
+      cutout: "62%"
+    }
+  });
+}
+
+function renderInsights() {
+  const wrap = document.getElementById("insights");
+  const tips = [];
+  const spent = totalSpent();
+  const remain = NET - spent;
+
+  if (transactions.length === 0) {
+    tips.push({ text: "Begin by logging today's first expense — even small faithfulness shapes great stewardship.", cls: "" });
+  }
+  DEFAULT_CATEGORIES.forEach(c => {
+    const b = budgets[c.id] || 0;
+    const s = spentByCat(c.id);
+    if (b > 0) {
+      if (s > b) tips.push({ text: `You are over budget in <b>${c.name}</b> by ${kes(s - b)}. Pause and reset.`, cls: "over" });
+      else if (s / b >= 0.8) tips.push({ text: `<b>${c.name}</b> is at ${Math.round(s/b*100)}% of budget — slow your hand.`, cls: "warn" });
+    }
+  });
+  if (spent > 0 && spent < NET * 0.5) {
+    tips.push({ text: `You have spent only ${Math.round(spent/NET*100)}% of your take-home. Diligence is quietly compounding.`, cls: "" });
+  }
+  if (remain < 0) {
+    tips.push({ text: `You have exceeded your take-home by ${kes(-remain)}. Borrow no further — see Proverbs 22:7.`, cls: "over" });
+  }
+  const savingsSpent = spentByCat("savings");
+  if (savingsSpent >= (budgets["savings"] || 0) && (budgets["savings"] || 0) > 0) {
+    tips.push({ text: `You met your Savings goal of ${kes(budgets["savings"])} — gather little by little, it shall increase.`, cls: "" });
+  }
+  if (tips.length === 0) {
+    tips.push({ text: "All categories are on course. Walk steadily.", cls: "" });
+  }
+  wrap.innerHTML = tips.map(t => `<div class="tip ${t.cls}">${t.text}</div>`).join("");
+}
+
+function pickVerses() {
+  const accents = ["", "olive", "forest", "terracotta"];
+  const shuffled = [...VERSES].sort(() => Math.random() - 0.5).slice(0, 2);
+  const wrap = document.getElementById("verses");
+  wrap.innerHTML = shuffled.map((v, i) => `
+    <div class="verse-card ${accents[i % accents.length]}">
+      <p class="quote">"${v.text}"</p>
+      <div class="ref">${v.ref}</div>
+    </div>
+  `).join("");
+}
+
+function renderAll() {
+  renderSummary();
+  renderCategories();
+  renderTransactions();
+  renderChart();
+  renderInsights();
+}
+
+// Init
+document.getElementById("f-date").value = new Date().toISOString().slice(0, 10);
+renderCategoryOptions();
+renderAll();
+pickVerses();
+
+document.getElementById("expense-form").addEventListener("submit", e => {
+  e.preventDefault();
+  const desc = document.getElementById("f-desc").value.trim();
+  const amt = Number(document.getElementById("f-amt").value);
+  const cat = document.getElementById("f-cat").value;
+  const date = document.getElementById("f-date").value;
+  if (!desc || !amt || amt <= 0 || !cat || !date) return;
+  transactions.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), desc, amt, cat, date });
+  saveTx();
+  e.target.reset();
+  document.getElementById("f-date").value = new Date().toISOString().slice(0, 10);
+  renderAll();
+});
+
+document.getElementById("clear-all").addEventListener("click", () => {
+  if (!confirm("Clear all transactions? This cannot be undone.")) return;
+  transactions = [];
+  saveTx();
+  renderAll();
+});
+
+document.getElementById("reset-budgets").addEventListener("click", () => {
+  if (!confirm("Reset all budgets to their default values?")) return;
+  budgets = {};
+  DEFAULT_CATEGORIES.forEach(c => budgets[c.id] = c.budget);
+  saveBudgets();
+  renderAll();
+});
+
+document.getElementById("reshuffle").addEventListener("click", pickVerses);
+</script>
+</body>
+</html>
